@@ -1,10 +1,11 @@
-// 1) ------ Importar dependencias ------
+// ------ Importar dependencias ------
 const express = require('express');
 const dotenv = require('dotenv').config();
 const MongoClient = require('mongodb').MongoClient;
 const URL = process.env.MONGODB;
+const optionsMongo = { useNewUrlParser: true, useUnifiedTopology: true } 
 
-// 2) ------ Configuración inicial ------
+// ------ Configuración inicial ------
 const server = express();
 const listenPort = process.env.PORT || 8080;
 
@@ -12,7 +13,14 @@ const listenPort = process.env.PORT || 8080;
 server.use(express.urlencoded({ extended: true }));
 server.use(express.json());
 
+// Levantar el Servidor
+server.listen(listenPort,
+    () => console.log(`Server listening on ${listenPort}`)
+);
+
+// PETICION GET
 server.get('/restaurants', (req, res) => {
+    // let find = {name: req.body.name}
     // let BO = borough;
     MongoClient.connect(URL, (err, db)=> {
         if (err) throw err;
@@ -20,43 +28,61 @@ server.get('/restaurants', (req, res) => {
     
         data.collection("restaurants").find({}).toArray( (err, result) => {
             if (err) throw err;
-            res.send(result.map(el => el.name));
+            res.send(result.map(el => el));
             db.close();
         })
         console.log("Working tree clean");
     })
 });
 
-server.post('/restaurants', (req, res) => {
-    // let BO = borough;
-    MongoClient.connect(URL, (err, db)=> {
+// PETICION POST
+server.post('/restaurants/create', async (req, res) => {
+    let newRest = req.body
+    console.log(req.body);
+    
+    await MongoClient.connect(URL, optionsMongo, (err, db) => {
         if (err) throw err;
-        let data = db.db("crudapp")
-        
-        let obj = {
-            address: 
-            { building: '10',
-            coord: [ -73.9829239, 40.6580753 ],
-            street: 'Calle de las Aguas',
-            zipcode: '28005' },
-            borough: 'Latina',
-            cuisine: 'Bistró',
-            grades: 
-            [ { date: "2014-11-19T00:00:00.000Z", grade: 'A', score: 10 },
-            { date: "2013-11-14T00:00:00.000Z", grade: 'A', score: 10 },
-            { date: "2012-12-05T00:00:00.000Z", grade: 'A', score: 10 },
-            { date: "2012-05-17T00:00:00.000Z", grade: 'A', score: 10 } ],
-            name: 'Marmitón Bistró',
-            restaurant_id: '12345' }
-
-        data.collection("restaurants").insertOne(obj,function(err, res) {
-            if (err) throw err;
-            console.log("1 document inserted");
-            db.close()
-        })
+        db.db("crudapp")
+            .collection("restaurants")
+            .insertOne(newRest, (err, result) => {
+                if (err) throw err;
+                res.send("Restaurant added")
+                db.close();
+            });
     })
 })
 
-server.listen(listenPort,
-    () => console.log(`Server listening on ${listenPort}`)
-);
+// PETICIÓN DELETE
+server.delete('/restaurants/delete', (req, res) => {
+    let borrar = { name: req.query.name }
+    console.log(borrar);
+
+    MongoClient.connect(URL, optionsMongo, (err, db) => {
+        if (err) throw err;
+        db.db("crudapp")
+            .collection("restaurants")
+            .deleteOne(borrar, (err, result) => {
+                if (err) throw err;
+                res.send("Restaurant deleted")
+                db.close();
+            });
+    })
+})
+
+// PETICIÓN PUT
+server.put('/restaurants/edit', (req, res) => {
+    console.log(req.query);
+    let editar = { name: req.query.name }
+    let cambio = {$set: req.body }
+
+    MongoClient.connect(URL, optionsMongo, (err, db) => {
+        if (err) throw err;
+        db.db("crudapp")
+            .collection("restaurants")
+            .updateOne(editar, cambio, (err, result) => {
+                if (err) throw err;
+                res.send("Restaurant edited")
+                db.close();
+            });
+    })
+})
